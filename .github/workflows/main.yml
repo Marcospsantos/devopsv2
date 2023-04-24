@@ -1,0 +1,49 @@
+name: Deploy da página HTML
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v2
+
+      - name: Build da imagem Docker
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: false
+          tags: nome-da-imagem:latest
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run HTML Lint
+        uses: nitayneeman/html-linter-action@v1.1
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login no Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_PWD }}
+
+      - name: Push da imagem Docker para Docker Hub
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USER }}/nome-da-imagem:latest
+
+      - name: Deploy da aplicação com Docker Compose
+        uses: docker/compose-action@v2
+        with:
+          compose-file: docker-compose.yml
